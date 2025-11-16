@@ -13,7 +13,7 @@
 
 ## 特性
 
-- 流程编排：`classify → read_code → analyze_requirements → design_solution → generate_code → save_files → version_commit → service_manage → check_console_errors`。
+- 流程编排：`classify（分流） → read_code（读取代码） → analyze_requirements（需求分析） → design_solution（系统设计） → generate_code（生成代码） → save_files（保存文件） → version_commit（版本提交） → service_manage（服务管理） → check_console_errors（控制台错误检查）`。
 - 需求分流：自动归类为 `dev`、`bugfix` 或 `qna`。
 - 代码生成约定：从大模型返回 <arc-file type="file/shell" path=""></arc-file>，提取 `files/shell`。
 - 服务启动策略：优先使用模型返回的启动命令，其次按项目类型自动推断（Java/PHP/Go/Node/Python）。
@@ -21,7 +21,7 @@
 
 ## 环境要求
 
-- Python `3.9+`
+- Python `3.10+`
 - `git`（用于版本快照），`node`/`npm`、`Java`/`Maven`/`Gradle`、`PHP`、`Go`（用于不同项目类型的服务启动）
 - 在线模型：OpenRouter API Key
 
@@ -76,7 +76,7 @@ def hello():
 - 关键打印（终端可见）：
   - `type`：分流类型（`dev/bugfix/qna`）
   - `read_code`：采样文件数量
-  - `plan/design`：文本摘要（可能很长）
+  - `plan/design`：文本摘要
   - `generate_code parse_error` 与 `raw`：解析失败与原始片段（截断）
   - `generate_code/fix_code`：生成/修复的文件数量
   - `save_files`：写入文件数量
@@ -93,6 +93,22 @@ def hello():
   - 系统会打印 `raw` 片段帮助定位。
 - 未生成文件但服务要启动：
   - 可配置模型返回最小入口文件；或让系统兜底（例如自动生成 FastAPI 入口）。
+
+## 待完善与规划
+
+- 模型降级策略：OpenRouter 不可用时本地离线回退，自动生成最小 arc-file 模板与命令。
+- 提示词规范化：统一各节点提示，明确 arc-file 字段含义；可选 `type="install"/"start"` 标签。
+- 解析器增强：支持属性转义、空标签校验、错误定位行号与片段截断规则。
+- 多语言识别扩展：补充 Rust/.NET/Scala；Node 常见框架（Next/Nest/Vite）启动识别。
+- 命令执行健壮性：超时/重试、跨平台兼容（PowerShell/bash）、环境隔离与依赖缓存。
+- 日志采集改进：后端日志路径自动发现、前端控制台捕获、着色与关键字高亮。
+- 流程容错：异常重试、断点续跑、图状态持久化（文件/SQLite）。
+- 安全治理：敏感文件检测（`.env`、密钥、证书）、历史清理指引与自动提示。
+- 质量保障：单元/集成测试，`lint`/格式化、类型检查；提供标准命令与 CI 配置示例。
+- 配置化能力：采样文件模式、生成阈值、超时参数、服务端口等通过配置文件管理。
+- 版本管理优化：提交信息模板、changelog 生成、标签与发布流程。
+- 交互体验：CLI 交互参数校验、进度条与阶段性结果展示、输出收敛与日志级别控制。
+- 文档与示例：arc-file 协议详细说明、跨语言示例仓库、常见错误与排障手册。
 
 ## 许可证
 
