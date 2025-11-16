@@ -1,0 +1,54 @@
+# Python
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+coverage/
+htmlcov/
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+out/
+
+# Java
+target/
+.gradle/
+.classpath
+.project
+.settings/
+
+# PHP
+vendor/
+
+# Go
+bin/
+pkg/
+go-build/
+
+# IDE/OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs & env
+logs/
+*.log
+.env
+.env.*
+!.env.example
+
+# Misc
+*.sqlite
+
+# it
+temp/
