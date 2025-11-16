@@ -89,11 +89,16 @@ def _parse_arc_files(raw):
 def classify_request(state: State) -> State:
     # 需求分流：返回 dev/bugfix/qna
     sys = """
-    你是软件团队的需求分流助手，仅返回dev或bugfix或qna。
-    分流规则：
-    1. 如果用户要求“新增功能、生成文件、生成接口、写组件、写 API、生成 SQL、生成项目结构”等 → dev
-    2. 如果用户描述报错、异常、无法运行、错误日志、Bug等 → bugfix
-    3. 如果用户提出知识性问题（如 CORS 是什么？TCP 如何？npm run dev 是什么？） → qna
+    只输出一个小写词：dev 或 bugfix 或 qna，不要任何其他字符。
+    判定规则：
+    - dev：包含新增/实现/搭建/开发/生成/编写/创建/设计/集成/改造等意图；或要求生成文件/接口/组件/SQL/项目结构。
+    - bugfix：出现报错/错误/异常/崩溃/无法运行/堆栈/错误码/日志，并意图修复或定位问题；含“修复”“报错”“报异常”“错误日志”。
+    - qna：知识性或科普问答（如 原理/是什么/怎么做/区别/示例/最佳实践），不涉及落地实现或修复。
+    优先级：若同时有错误日志并要求修复，选择 bugfix；若既有知识问答也包含明确开发需求，选择 dev。
+    示例：
+    - “开发一个 OA 系统，提供登录与审批” → dev
+    - “运行时报错：Traceback ...，请修复” → bugfix
+    - “什么是 CORS，如何工作？” → qna
     """
     usr = f"需求:{state.get('request')}"
     out = llm.chat(sys, usr).strip().lower()
@@ -124,20 +129,35 @@ def read_code(state: State) -> State:
 def analyze_requirements(state: State) -> State:
     # 根据上下文与需求生成开发计划（文本）
     sys = """
-    你是资深架构师，按输入代码上下文与需求输出开发计划，不要赘述。
-    开发计划要求：
-    1. 明确需求点、按功能进行拆分
-    2. 无需输出开发时间
+    你是资深架构师。基于用户需求与仓库上下文输出简明开发计划。
+    规则：
+    - 用中文、分点列出，避免客套与赘述；每点不超过两行。
+    - 必须包含：目标与范围、功能拆分、模块与边界、接口草案（方法/路径/请求/响应）、数据模型要点（表/字段或实体）、依赖与技术栈、落地步骤（按优先级）。
+    - 不要输出工期/人员/预算/风险评估等非技术信息。
+    - 即使代码上下文为空，也给出合理默认方案。
+    输出格式：使用编号的列表。
     """
     usr = f"需求:{state['request']}\n代码上下文:{state.get('message','')}"
-    plan = llm.chat(sys, usr)
+    plan = llm.chat(sys, usr, temperature=0.0)
     print(f"plan: {str(plan)}")
     return {"plan": plan}
 
 def design_solution(state: State) -> State:
     # 根据计划生成系统设计要点（文本）
-    sys = "根据开发计划输出系统设计要点，模块划分与接口。"
-    des = llm.chat(sys, state["plan"])
+    sys = """
+    你是资深架构师。基于开发计划输出系统设计要点，要求简洁且可落实。
+    必须包含：
+    - 架构与技术栈：框架/库/数据库/缓存/消息等选择与理由（一行即可）。
+    - 模块划分：模块名与责任边界，关键输入/输出。
+    - 接口草案：方法/路径/参数/请求体/响应体简述（至少列登录与一个核心功能）。
+    - 数据模型要点：核心实体或表，关键字段及约束（主键/唯一/外键）。
+    - 安全与治理：认证授权（如 JWT/RBAC）、CORS、速率限制、审计日志要点。
+    - 配置与环境：必要的环境变量与默认值建议。
+    - 目录结构建议：高层级目录与文件示例（不必详尽）。
+    - 运行与运维：启动方式、健康检查、错误处理与日志策略。
+    输出格式：使用编号列表，每点不超过两行，避免赘述。
+    """
+    des = llm.chat(sys, state["plan"], temperature=0.0)
     print(f"design: {str(des)}")
     return {"design": des}
 
@@ -201,20 +221,37 @@ def read_logs(state: State) -> State:
 
 def locate_issue(state: State) -> State:
     # 根据日志与代码上下文生成修复计划（文本）
-    sys = "你是资深排错工程师。结合错误日志与代码片段，定位问题根因并输出可执行的修复计划（包含需要修改的文件与大致修改点）。"
+    sys = """
+    你是资深排错工程师。结合错误日志与代码片段，输出可执行的修复计划。
+    要求：
+    - 用中文编号列出，简洁，不要赘述；每点不超过两行。
+    - 必须包含：
+      1) 根因分析（错误类型、触发条件、影响范围）；
+      2) 受影响文件路径与原因（逐项列出）；
+      3) 修复思路与具体修改点（按文件分组）；
+      4) 验证方案（复现步骤、测试用例或接口/脚本）；
+      5) 兼容性与回滚方案（如数据库变更、接口兼容）。
+    输出严格为纯文本计划，不要代码或命令。
+    """
     usr = f"日志:\n{state.get('logs','')}\n\n代码上下文采样:\n{state.get('message','')}"
-    plan = llm.chat(sys, usr)
+    plan = llm.chat(sys, usr, temperature=0.0)
     print(f"bugfix_plan: {str(plan)}")
     return {"plan": plan}
 
 def fix_code(state: State) -> State:
     # 按修复计划生成修复文件（arc-file 格式）
     sys = """
-    不要解释、不要Markdown或代码块，按下面格式输出修复内容：
-    <arc-file type=\"file\" path=\"路径/文件.ext\">文件内容</arc-file>
-    可多条。
+    只输出 arc-file 标签，不要解释、不要Markdown、不要多余文本。
+    结构：
+    <arc-file type=\"file\" path=\"路径/文件.ext\">完整源码</arc-file>
+    规则：
+    - 可多条，每条一个文件；路径相对仓库根；
+    - 内容必须为完整可运行源码，避免省略号与占位；
+    - 修改现有文件时直接输出整文件内容；新增文件同理；
+    - 保证导入/依赖正确，语法通过；不要输出二进制或过大文件；
+    - 严禁输出除 arc-file 外的任何字符。
     """
-    raw = llm.chat(sys, state["plan"])
+    raw = llm.chat(sys, state["plan"], temperature=0.0)
     files, _shells = _parse_arc_files(raw)
     if not files:
         print("fix_code parse_error: invalid arc-file")
